@@ -94,15 +94,18 @@ Some things are wrong by category, not by implementation quality. No amount of c
 
 Flag each of the following as a hard recommendation to replace, not patch:
 
-| What you're doing | Why DIY is the wrong call | What to use instead |
+| Domain | Why DIY breaks down | Use instead |
 |---|---|---|
-| Capturing card numbers in your own form, charging via your own server | PCI-DSS compliance is an annual external audit. You are not going to pass it. | Stripe / Tranzila / PayPal — let them touch the card, you only see a token |
-| Rolling your own login + sessions + password reset | Session fixation, credential stuffing, MFA, recovery flows — every edge case is a known vulnerability someone else already solved | Auth0 / Clerk / NextAuth / Supabase Auth / Firebase Auth |
-| Saving uploaded files to local disk on a serverless host | Disk doesn't persist between cold starts; will silently delete user uploads | S3 / R2 / Vercel Blob / GCS — designed for this |
-| Sending mail from your app server via raw SMTP | Deliverability is its own engineering discipline; your IP will end up on blocklists | Resend / SendGrid / SES / Postmark / Mailgun |
-| Storing API keys in committed config files | One leaked git history = full compromise, not recoverable | Platform env vars (Vercel/Netlify/Railway) + a secrets manager for sensitive ops |
-| "I'll back up the database manually when I remember" | The day you need the backup is the day you forgot to take one | Managed DB with automated backups + a documented restore that someone has actually executed |
-| Building a custom CRM dashboard for the team to track leads | You're rebuilding a $20/month SaaS for $5,000 of your own time | HubSpot Free / Notion / Airtable / Trello |
+| **Search inside the app** | Building real search means tokenizers, ranking, typo tolerance, multilingual support — you'll spend a quarter on what people install in an afternoon | Algolia / Meilisearch / Typesense / Postgres full-text |
+| **Real-time sync between clients** | WebSocket plumbing, reconnection logic, presence, conflict resolution — none of it is the product | Pusher / Ably / Liveblocks / Supabase Realtime |
+| **User authentication, sessions, password reset** | Sessions, MFA, recovery flows, OAuth integrations — each one is a known footgun | Clerk / Auth0 / NextAuth / Supabase Auth / Firebase Auth |
+| **Image / file uploads with thumbnails** | Resizing, format conversion, CDN distribution, virus scanning | Cloudinary / Uploadcare / Vercel Blob with Image API / S3 + Lambda |
+| **Outbound transactional email** | Deliverability is a full-time job; one mistake puts the sending IP on a blocklist | Resend / SendGrid / Postmark / SES |
+| **Charging customer cards** | PCI-DSS scope is an external audit you will not voluntarily go through | Stripe / Tranzila / PayPal — they hold the card, you hold a token |
+| **API keys and secrets** | One leaked commit equals full compromise that no rotation undoes after the fact | Platform env vars + a secrets manager (Doppler / 1Password / AWS Secrets Manager) |
+| **Database backups** | The day a restore is needed is the day the manual backup wasn't taken | Managed DB with automated backups + a restore that has actually been executed at least once |
+| **Internal team CRM / lead inbox** | Rebuilding a category that already costs $20 / month uses up engineering hours that should ship product | HubSpot Free / Notion / Airtable |
+| **Product analytics on user behavior** | Sessionizing events, retention math, funnels — solved at scale by tools you can't beat alone | PostHog / Mixpanel / Plausible / Umami |
 
 The pattern: anything regulated (PCI, GDPR, חוק הגנת הפרטיות, CAN-SPAM) belongs to a service that already paid the compliance bill. Anything where the cost of getting it wrong is higher than the SaaS subscription belongs to that SaaS.
 
@@ -118,7 +121,7 @@ Code that runs fine for the first 50 customers can fall over at the 500th — an
 - File uploads with per-request size cap but no per-day-per-user cap. One bad actor uploads 1TB and your storage bill spikes.
 - Background jobs / cron tasks where failures retry forever silently. The job that should run hourly hasn't run in three days; nobody knows.
 
-Threshold rule: if the project will plausibly cross 500 daily active users or 10 transactions per second, recommend an architecture review by someone with serverless-at-scale experience BEFORE the launch — not after the first incident.
+When to call in an architect: the founder can usually picture how the system handles their first dozen customers. If the realistic 6-month trajectory pushes past that — concurrent uploads, simultaneous logins, sustained background jobs — recommend an architecture review by someone with production-at-scale experience BEFORE the launch, not after the first incident.
 
 ### Group D — Operational gaps the team needs from day 1
 
@@ -178,7 +181,7 @@ For each finding:
 DIY components to swap for a managed provider, with the recommendation and the reason.
 
 ## 📈 Group C — Will hurt at scale
-Things that work today but will fail as traffic grows. Include the rough threshold (e.g. "fine until ~500 DAU, breaks at the connection pool").
+Things that work today but will fail as traffic grows. Name the bottleneck and the failure mode (e.g. "the connection pool is the first thing to saturate; expect cryptic timeouts under load").
 
 ## 🧰 Group D — Operational gaps
 Logging, monitoring, backups, alerting — what's missing for the team to know when something breaks.
